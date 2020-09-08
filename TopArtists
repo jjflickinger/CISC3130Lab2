@@ -1,0 +1,167 @@
+//Reads artists and songs from Spotify Charts csv file
+//Puts them in a 2D array
+//Writes them to a new file
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Scanner;
+
+public class TopArtists {
+
+    //Read file into 1D array and return the array
+    public static String[] readFile(String fileName, int length, int linesIgnored) {
+        //Put each line as an element in a 1D array
+        String[] a = new String[length];
+        try {
+            File file = new File(fileName);
+            Scanner scanner = new Scanner(file);
+            for (int i = 0; i < linesIgnored; i++) {
+                scanner.nextLine();
+            }
+            int i = 0;
+            while (scanner.hasNextLine() && i < length) {
+                a[i] = scanner.nextLine();
+                i++;
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("File not found.");
+            e.printStackTrace();
+        }
+        return a;
+    }
+    
+    //Return whether the given artist is in the array
+    public static boolean artistInArray(String artist, String[][] artists, int artistsSoFar) {
+        //Search the array up until the number of artists entered so far
+        for (int i = 0; i < artistsSoFar; i++) {
+            if (artists[i][0].equals(artist)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    //Search the rows and return the index of the given artist
+    public static int artistIndex(String artist, String[][] artists, int artistsSoFar) {
+        //This method is only called once artistInArray has already returned true,
+        //so it should never return -1
+        int index = -1;
+        for (int i = 0; i < artistsSoFar; i++) {
+            if (artists[i][0].equals(artist)) {
+                index = i;
+            }
+        }
+        return index;
+    }
+    
+    //Search the given index's row and return the index of the first null element
+    public static int songIndex(int artistIndex, String[][] artists) {
+        for (int i = 0; i < artists[artistIndex].length; i++) {
+            if (artists[artistIndex][i] == null) {
+                return i;
+            }
+        }
+        return 1;
+    }
+    
+    //Create 2D array where element 0 of each row is an artist
+    //and the rest of the elements in each row are their songs
+    public static String[][] create2DArray(String[] lines) {
+        //Maximum theoretical numbers of artists
+        //and songs per artist in top 200 songs file
+        //are 200 and 200 respectively
+        String[][] artists = new String[200][200];
+        int artistsSoFar = 0;
+        for (int i = 0; i < lines.length; i++) {
+            //Parse the line, dividing it into 5 parts
+            String[] oneLine = lines[i].split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
+            //Song title is element 1
+            //Artist name is element 2
+            //We don't care about the other 3 elements
+            String artist = oneLine[2];
+            String song = oneLine[1];
+            //If the artist is not in the 2D array yet, add them and their song
+            if (!artistInArray(artist, artists, artistsSoFar)) {
+                artists[artistsSoFar][0] = artist;
+                artists[artistsSoFar][1] = song;
+                artistsSoFar++;
+            } else {
+                //Find the artist in the array
+                int artistIndex = artistIndex(artist, artists, artistsSoFar);
+                //Find how many songs the artist has in the array so far
+                int songIndex = songIndex(artistIndex, artists);
+                artists[artistIndex][songIndex] = song;
+            }
+        }
+        return artists;
+    }
+    
+    //Create an empty file with its name as the argument
+    public static File createFile(String name) {
+        try{
+            File file = new File(name);
+            if (file.createNewFile()) {
+                System.out.println("File created: " + file.getName());
+            } else {
+                System.out.println("File already exists.");
+            }
+            return file;
+        } catch (IOException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+        }
+        return null;
+    }
+    
+    //Writes a two dimensional array to a file
+    public static void writeToFile(String[][] artists, File file) {
+        try {
+            FileWriter writer = new FileWriter(file.getName());
+            //for each artist name
+            for (int i = 0; i < artists.length; i++) {
+                //If we're here, we've reached the end of the data, so stop
+                if (artists[i][0] == null) {
+                    break;
+                } else {
+                    //Write the artist's name to the file
+                    writer.write(artists[i][0] + ": ");
+                    for (int j = 1; j < artists[i].length; j++) {
+                        //If we're here, we've reached the end of that artist's songs
+                        if (artists[i][j] == null) {
+                            break;
+                        } else {
+                            //Write the artist's songs after their name
+                            writer.write(artists[i][j] + " ");
+                        }
+                    }
+                }
+                writer.write("\n");
+            }
+            writer.close();
+        } catch (IOException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+        }
+    }
+    
+    public static void main(String[] args) {
+        //Spotify Charts always has Top 200 with same file name
+        //Execs would probably prefer not to enter this manually
+        //So the program is hard coded around the details of the file
+        String fileNameRead = "regional-us-weekly-latest.csv";
+        int length = 200;
+        //First 2 lines are not data
+        int linesIgnored = 2;
+        String[] lines = readFile(fileNameRead, length, linesIgnored);
+        //Create the array of artists and song titles
+        String[][] artists = create2DArray(lines);
+        //Create an empty file called Artists-WeekOf2020-09-01.txt
+        String fileNameWrite = "Artists-WeekOf2020-09-01.txt";
+        File file = createFile(fileNameWrite);
+        //Write the top artists to the file
+        writeToFile(artists, file);
+    }
+}
